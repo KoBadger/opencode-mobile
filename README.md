@@ -1,17 +1,20 @@
-# OpenCode on Android — phone-local server + desktop, one bridge
+# The OC Remoter
 
 Run OpenCode **directly on your phone** and use it from the
 [OC Remote](https://github.com/crim50n/oc-remote) Android app — with an optional
 connection to your desktop over Tailscale.
 
+The name is a nod to what this actually does: it *remotes* OpenCode onto your
+phone, and bridges the version gap that otherwise makes that impossible.
+
 > **TL;DR**
 > ```bash
 > # In Termux on the phone:
-> pkg install -y git && git clone <repo> ~/opencode-mobile
-> bash ~/opencode-mobile/setup-phone.sh
+> pkg install -y git && git clone https://github.com/KoBadger/the-oc-remoter ~/the-oc-remoter
+> bash ~/the-oc-remoter/setup-phone.sh
 > ```
 > Then in the app add a server: **`http://127.0.0.1:4097`**, user `opencode`,
-> password `$PASS`.
+> password from `config.env`.
 
 ---
 
@@ -28,6 +31,7 @@ one of them is solved here, so you don't have to rediscover them:
 | The app's "Save" seems to do nothing | V1 health check can't parse V2's HTML catch-all response, so servers save as `isHealthy:false` | same bridge |
 | Server dies in the background | Android's phantom-process killer SIGKILLs proot children | `settings put global settings_enable_monitor_phantom_procs false` |
 | Bridge can't find its file | proot's `$HOME` is `/root`, not Termux's home | installer copies the bridge **into** the container |
+| App shows **"Unexpected status line"** or *"Unexpected JSON token at $[1].name"* | the bridge forwarded `content-length` while replaying a **decoded** body, so responses were mis-framed | bridge drops `content-length`/`transfer-encoding` and lets Node frame the response |
 
 ---
 
@@ -73,8 +77,8 @@ Two servers, two clients:
 ### 1. Get this repo onto the phone
 ```bash
 pkg install -y git
-git clone https://github.com/KoBadger/opencode-mobile ~/opencode-mobile
-cd ~/opencode-mobile
+git clone https://github.com/KoBadger/the-oc-remoter ~/the-oc-remoter
+cd ~/the-oc-remoter
 ```
 
 ### 2. One-shot setup

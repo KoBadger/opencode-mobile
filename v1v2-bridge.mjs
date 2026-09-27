@@ -191,11 +191,25 @@ const server = http.createServer(async (req, res) => {
     });
 
     // Stream the response back verbatim, preserving SSE etc.
+    //
+    // We must NOT forward content-length: fetch gives us a DECODED body, so any
+    // upstream content-length (or transfer-encoding) describes the encoded form
+    // and would be wrong. A wrong content-length makes the client read past the
+    // response boundary and interpret payload bytes as a status line - which
+    // surfaces as "Unexpected status line" in the app. Dropping it lets Node
+    // frame the response itself.
     const outHeaders = {};
     upstream.headers.forEach((value, key) => {
-      if (["content-encoding", "transfer-encoding", "connection"].includes(key)) return;
+      if (["content-encoding", "content-length", "transfer-encoding", "connection"].includes(key)) return;
       outHeaders[key] = value;
     });
+
+    // SSE and similar streams must not be buffered or length-delimited.
+    const isStream = (outHeaders["content-type"] || "").includes("text/event-stream");
+    if (isStream) {
+      outHeaders["cache-control"] = "no-cache";
+      outHeaders["x-accel-buffering"] = "no";
+    }
 
     res.writeHead(upstream.status, outHeaders);
 

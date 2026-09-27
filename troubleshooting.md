@@ -5,6 +5,41 @@ cause → fix.
 
 ---
 
+## The app shows "Unexpected status line: <random base64>" or
+
+## "Illegal input: Unexpected JSON token at path: $[1].name"
+
+**Cause.** The bridge was **mis-framing large responses**. It replayed the
+upstream's `content-length` header while streaming `fetch`'s **decoded** body.
+With chunked or compressed upstreams those lengths disagree, so the client read
+the wrong number of bytes, left the remainder in the socket, and began the next
+read mid-payload — seeing base64 icon data where an HTTP status line belongs.
+
+The `$[1].name` variant is the same fault seen by the JSON parser: the body was
+truncated at the boundary, so `name` was followed by an object instead of a
+string.
+
+**Fix.** `v1v2-bridge.mjs` now strips `content-length` **and**
+`transfer-encoding` and lets Node frame the response itself. Two regression
+tests cover it: `test-framing.mjs` checks an oversized base64 JSON payload and
+two requests on one keep-alive connection.
+
+**Verify** the running bridge has the fix:
+
+```bash
+grep -n 'content-length' v1v2-bridge.mjs
+# the filter line must list content-length:
+#   if (["content-encoding", "content-length", "transfer-encoding", "connection"].includes(key)) return;
+```
+
+If it does not, re-copy the bridge into the container:
+
+```bash
+bash install-bridge-phone.sh
+```
+
+---
+
 ## The app says "server is not responding" but `curl` works
 
 **Cause.** The Android app speaks the **OpenCode V1 HTTP API**. OpenCode **V2**
