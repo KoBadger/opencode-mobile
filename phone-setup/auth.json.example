@@ -1,0 +1,7 @@
+{
+  "//": "Copy this to auth.json and fill in your own keys. Never commit auth.json.",
+  "//providers": "Key name = provider id from your opencode.json. Value = that provider's credential object.",
+  "anthropic": { "type": "api", "key": "sk-ant-..." },
+  "openai": { "type": "api", "key": "sk-..." },
+  "openrouter": { "type": "api", "key": "sk-or-..." }
+}

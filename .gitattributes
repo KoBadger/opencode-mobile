@@ -1,0 +1,8 @@
+# Normalize line endings - the shell scripts run on Linux/Android,
+# so they MUST keep LF. Never let Git convert them to CRLF.
+* text=auto eol=lf
+*.sh text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.ps1 text eol=crlf

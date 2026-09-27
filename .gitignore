@@ -1,0 +1,16 @@
+# ---- secrets: never commit these ----
+phone-setup/auth.json
+*.auth.json
+auth.json
+.env
+*.env
+
+# ---- runtime output ----
+*.log
+bridge.log
+server-phone.log
+
+# ---- OS noise ----
+.DS_Store
+Thumbs.db
+desktop.ini
