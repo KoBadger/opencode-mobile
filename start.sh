@@ -1,17 +1,34 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # Start the OpenCode V2 server (4096) and the V1<->V2 bridge (4097).
 set -u
-echo "Starting OpenCode (server 4096 + bridge 4097)..."
-[ -x "$HOME/start-phone-opencode.sh" ] && bash "$HOME/start-phone-opencode.sh" || echo "  [!] start-phone-opencode.sh missing - run setup-phone.sh"
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib.sh
+. "$DIR/lib.sh"
+
+echo "Starting OpenCode (server $SERVER_PORT + bridge $BRIDGE_PORT)..."
+
+if [ -x "$HOME/start-phone-opencode.sh" ]; then
+  bash "$HOME/start-phone-opencode.sh"
+else
+  echo "  [!] ~/start-phone-opencode.sh missing - run setup-phone.sh first"
+  exit 1
+fi
 
 echo -n "  waiting for the V2 server "
 for _ in $(seq 1 25); do
-  if curl -fsS -m 3 -u opencode:Vaporwave1127! -o /dev/null \
-       http://127.0.0.1:4096/api/info 2>/dev/null; then echo "ok"; break; fi
+  if curl -fsS -m 3 -u "$OPENCODE_USER:$OPENCODE_PASS" -o /dev/null \
+       "http://127.0.0.1:$SERVER_PORT/api/info" 2>/dev/null; then echo " ok"; break; fi
   echo -n "."
   sleep 2
 done
 
-[ -x "$HOME/start-phone-bridge.sh" ] && bash "$HOME/start-phone-bridge.sh" || echo "  [!] start-phone-bridge.sh missing - run setup-phone.sh"
+if [ -x "$HOME/start-phone-bridge.sh" ]; then
+  bash "$HOME/start-phone-bridge.sh"
+else
+  echo "  [!] ~/start-phone-bridge.sh missing - run setup-phone.sh first"
+  exit 1
+fi
+
 sleep 4
-bash "$(dirname "$0")/status.sh"
+bash "$DIR/status.sh"

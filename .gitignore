@@ -1,4 +1,5 @@
 # ---- secrets: never commit these ----
+config.env
 phone-setup/auth.json
 *.auth.json
 auth.json

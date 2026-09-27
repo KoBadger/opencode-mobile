@@ -11,7 +11,7 @@ connection to your desktop over Tailscale.
 > bash ~/opencode-mobile/setup-phone.sh
 > ```
 > Then in the app add a server: **`http://127.0.0.1:4097`**, user `opencode`,
-> password `Vaporwave1127!`.
+> password `$PASS`.
 
 ---
 
@@ -60,13 +60,20 @@ Two servers, two clients:
 
 ### 0. Prerequisites
 - **Termux** and **Termux:Boot** from **F-Droid** (not the Play Store build)
-- Set Termux + Tailscale to **Unrestricted** battery
-- The phone app: [OC Remote](https://github.com/crim50n/oc-remote)
+- The phone app: **[OC Remote](https://github.com/crim50n/oc-remote)** —
+  package `dev.minios.ocremote`
+- Set Termux and Tailscale to **Unrestricted** battery
+
+> **Which app?** There are several OpenCode Android clients with confusingly
+> similar names and UIs. This repo was built and verified against **OC Remote**
+> (`dev.minios.ocremote`). That's the one whose "Add Server" dialog and
+> `Local Server` card are described here. If you install a different one, the
+> bridge still works — but the menus won't match these instructions.
 
 ### 1. Get this repo onto the phone
 ```bash
 pkg install -y git
-git clone <repo-url> ~/opencode-mobile
+git clone https://github.com/KoBadger/opencode-mobile ~/opencode-mobile
 cd ~/opencode-mobile
 ```
 
@@ -75,32 +82,46 @@ cd ~/opencode-mobile
 bash setup-phone.sh
 ```
 
+### 2. Configure (optional but recommended)
+```bash
+cp config.env.example config.env
+nano config.env      # set OPENCODE_PASS to your own value
+```
+Every script reads `config.env`, so this is the only place to change
+credentials or ports. If you skip this, the server uses a well-known default
+password — fine on a private tailnet, not fine on a shared network.
+
+### 3. One-shot setup
+```bash
+bash setup-phone.sh
+```
+
 This does **everything**, in order:
 1. installs `proot-distro` + Ubuntu (~200 MB, one time)
 2. installs OpenCode V2 **inside** Ubuntu
-3. copies your config in (`phone-setup/`)
+3. copies your config into the container
 4. writes the start scripts + boot hooks
 5. starts the V2 server on **4096**
 6. installs and starts the bridge on **4097**
 7. prints a verification report
 
-### 3. Point the app at it
+### 4. Point the app at it
 
 | Field | Value |
 |---|---|
 | Server Name | `Phone` |
 | **Server URL** | **`http://127.0.0.1:4097`** |
-| Username | `opencode` |
-| Password | `Vaporwave1127!` |
+| Username | your `OPENCODE_USER` (default `opencode`) |
+| Password | your `OPENCODE_PASS` |
 
 > ⚠️ Use **4097**, not 4096. 4096 is the raw V2 server; the app can't read it.
 > If the app has an "Auto-connect on app launch" toggle, turn it **on**.
 
-### 4. Verify
+### 5. Verify
 ```bash
 bash status.sh
 ```
-Expect `/global/health` → `{"healthy":true,...}`.
+Expect the bridge to report `{"healthy":true,...}`.
 
 ---
 
@@ -135,11 +156,13 @@ if that desktop is also V2, point the app at `:4097` there too.
 | File | Purpose |
 |---|---|
 | `setup-phone.sh` | **one-shot installer** — run this |
+| `config.env.example` | copy to `config.env` to set your password/ports |
+| `lib.sh` | shared config loader (used by all scripts) |
 | `start.sh` / `stop.sh` / `restart.sh` / `status.sh` | day-to-day control |
 | `v1v2-bridge.mjs` | the V1↔V2 translation proxy (zero dependencies) |
 | `install-bridge-phone.sh` | just the bridge, if the server is already set up |
 | `install-bridge-desktop.ps1` | run the bridge on a Windows desktop |
-| `phone-setup/` | config transferred into the container (`opencode.json`, `auth.json`) |
+| `phone-setup/` | seed config (`opencode.json`) + `auth.json.example` |
 | `troubleshooting.md` | symptom → cause → fix, drawn from real failures |
 
 ---
@@ -167,9 +190,15 @@ curl -u opencode:secret http://127.0.0.1:4097/global/health
 
 ## Security note
 
-Credentials in this repo are placeholders for a **private Tailscale network**.
-Before exposing anything beyond your tailnet, change the passwords and treat
-`phone-setup/auth.json` as a secret.
+- **`config.env`** holds your server password. It is gitignored — never commit it.
+- **`~/.config/opencode/auth.json`** holds your provider API keys. It lives
+  outside this repo, and `phone-setup/auth.json` is gitignored too.
+- The default password in `config.env.example` is a placeholder. Change it
+  before exposing the server beyond a private tailnet.
+- The bridge forwards Basic auth upstream, so the phone server's password and
+  the bridge's password are the same value by default. If you want them to
+  differ, set `BRIDGE_USERNAME`/`BRIDGE_PASSWORD` separately when launching
+  `v1v2-bridge.mjs` by hand.
 
 ---
 

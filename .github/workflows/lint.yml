@@ -16,7 +16,7 @@ jobs:
       - name: Bash syntax check
         run: |
           fail=0
-          for f in setup-phone.sh start.sh stop.sh restart.sh status.sh install-bridge-phone.sh; do
+          for f in setup-phone.sh start.sh stop.sh restart.sh status.sh install-bridge-phone.sh lib.sh; do
             if bash -n "$f"; then
               echo "OK   $f"
             else
@@ -32,7 +32,7 @@ jobs:
           sudo apt-get install -y -qq shellcheck
           # SC1091: sourced files not followed. SC2086/SC2015 kept as warnings.
           shellcheck --severity=error \
-            setup-phone.sh start.sh stop.sh restart.sh status.sh install-bridge-phone.sh
+            setup-phone.sh start.sh stop.sh restart.sh status.sh install-bridge-phone.sh lib.sh
 
       - name: Node syntax check
         run: node --check v1v2-bridge.mjs

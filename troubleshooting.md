@@ -15,9 +15,9 @@ app tries to parse that HTML as JSON, throws, and marks the server unhealthy.
 You can see it directly:
 
 ```bash
-curl -u opencode:Vaporwave1127! http://127.0.0.1:4096/global/health
+curl -u opencode:$PASS http://127.0.0.1:4096/global/health
 # => <!doctype html> ...          <- HTML, not JSON
-curl -u opencode:Vaporwave1127! http://127.0.0.1:4097/global/health
+curl -u opencode:$PASS http://127.0.0.1:4097/global/health
 # => {"healthy":true,...}         <- bridge, correct
 ```
 
@@ -91,7 +91,7 @@ namespace. This is a **false negative**. It burns a lot of time if you trust it.
 **Fix.** Always probe over HTTP instead:
 
 ```bash
-curl -s -u opencode:Vaporwave1127! -o /dev/null -w "HTTP:%{http_code}\n" \
+curl -s -u opencode:$PASS -o /dev/null -w "HTTP:%{http_code}\n" \
   http://127.0.0.1:4096/api/info
 ```
 
@@ -102,21 +102,18 @@ curl -s -u opencode:Vaporwave1127! -o /dev/null -w "HTTP:%{http_code}\n" \
 **Cause.** Android's **phantom process killer** SIGKILLs proot's child processes.
 Samsung is especially aggressive about it.
 
-**Fix.** Disable the killer (survives reboots), and keep the app unrestricted:
+**Fix.** Disable the killer (survives reboots):
 
 ```bash
 adb shell settings put global settings_enable_monitor_phantom_procs false
 ```
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/termux/termux-boot/master/README.md >/dev/null  # just a marker
-```
-
-Also set **Settings → Apps → Termux** and **Tailscale** to **Unrestricted**
-battery. Verify the whitelist:
+Then set **Settings → Apps → Termux** and **Tailscale** to **Unrestricted**
+battery. Verify both the battery whitelist and the killer setting:
 
 ```bash
 adb shell dumpsys deviceidle whitelist | grep -i termux
+adb shell settings get global settings_enable_monitor_phantom_procs   # want: false
 ```
 
 ---
