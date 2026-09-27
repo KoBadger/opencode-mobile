@@ -37,6 +37,17 @@ EOF
 }
 
 # --------------------------------------------------------------------------
+# --uninstall hands off to uninstall.sh before doing any setup work.
+case "${1:-}" in
+  --uninstall|-u)
+    exec bash "$REPO_DIR/uninstall.sh" "${2:-}"
+    ;;
+  --help|-h)
+    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+esac
+
 banner
 say "0/7  Environment check"
 command -v pkg >/dev/null 2>&1 || die "This must run inside Termux."

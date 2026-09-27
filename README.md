@@ -132,10 +132,35 @@ bash status.sh          # what's running + health of both ports
 bash start.sh           # start server (4096) + bridge (4097)
 bash stop.sh            # stop both
 bash restart.sh         # restart both
+bash keep-alive.sh      # stop Android from killing the server (see below)
+bash setup-phone.sh --uninstall   # remove everything
 ```
 
 Boot persistence is automatic via `~/.termux/boot/opencode.sh`
 (Termux:Boot runs it a few seconds after the device finishes booting).
+
+### Keeping the server alive
+
+Android kills long-running background processes three separate ways. `setup-phone.sh`
+fixes none of them automatically, because two require ADB — so run this once:
+
+```powershell
+# on a PC, with wireless debugging enabled on the phone
+.\keep-alive.ps1
+```
+
+```bash
+# or from Termux, for the parts that don't need ADB
+bash keep-alive.sh
+```
+
+| Mechanism | Why it matters | Fixed by |
+|---|---|---|
+| **phantom process killer** | SIGKILLs proot's children — the main culprit | `keep-alive.ps1` / `.sh` |
+| battery optimisation | doze suspends Termux | ADB or manual |
+| standby bucket | restricts background work | ADB |
+
+Verify it worked: lock the phone, wait 10 minutes, then run `bash status.sh`.
 
 ### Connecting to the desktop too
 Add a **second** server in the app pointing at your desktop's Tailscale IP:
@@ -155,10 +180,12 @@ if that desktop is also V2, point the app at `:4097` there too.
 
 | File | Purpose |
 |---|---|
-| `setup-phone.sh` | **one-shot installer** — run this |
+| `setup-phone.sh` | **one-shot installer** — run this (`--uninstall` to remove it) |
 | `config.env.example` | copy to `config.env` to set your password/ports |
 | `lib.sh` | shared config loader (used by all scripts) |
 | `start.sh` / `stop.sh` / `restart.sh` / `status.sh` | day-to-day control |
+| `keep-alive.sh` / `keep-alive.ps1` | stop Android from killing the server |
+| `uninstall.sh` | clean teardown |
 | `v1v2-bridge.mjs` | the V1↔V2 translation proxy (zero dependencies) |
 | `install-bridge-phone.sh` | just the bridge, if the server is already set up |
 | `install-bridge-desktop.ps1` | run the bridge on a Windows desktop |
