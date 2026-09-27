@@ -21,22 +21,80 @@ string.
 
 **Fix.** `v1v2-bridge.mjs` now strips `content-length` **and**
 `transfer-encoding` and lets Node frame the response itself. Two regression
-tests cover it: `test-framing.mjs` checks an oversized base64 JSON payload and
-two requests on one keep-alive connection.
+tests cover it: `test/framing.test.mjs` checks an oversized base64 JSON payload
+and two requests on one keep-alive connection.
 
-**Verify** the running bridge has the fix:
+**Verify** the installed bridge has the fix. It only works if the filter line
+lists `content-length`:
 
 ```bash
 grep -n 'content-length' v1v2-bridge.mjs
-# the filter line must list content-length:
-#   if (["content-encoding", "content-length", "transfer-encoding", "connection"].includes(key)) return;
+# want:  if (["content-encoding", "content-length", "transfer-encoding", "connection"].includes(key)) return;
 ```
 
-If it does not, re-copy the bridge into the container:
+If it does not, refresh and reinstall:
 
 ```bash
+bash install-bridge-phone.sh --fetch
+```
+
+`install-bridge-phone.sh` checks for this automatically and warns if the copy
+next to it predates the fix.
+
+---
+
+## "curl: Failed to connect to 100.108.250.70:8899"
+
+**Cause.** An early development version of `install-bridge-phone.sh` downloaded
+the bridge from a temporary HTTP server on the developer's desktop. That server
+is long gone, so the download fails.
+
+**Fix.** Current scripts never fetch from a desktop. Get them from GitHub:
+
+```bash
+pkg install -y git
+git clone https://github.com/KoBadger/the-oc-remoter ~/the-oc-remoter
+cd ~/the-oc-remoter
 bash install-bridge-phone.sh
 ```
+
+Or, if you only have the single script file, let it fetch the bridge itself:
+
+```bash
+bash install-bridge-phone.sh --fetch
+```
+
+---
+
+## "The program git is not installed"
+
+**Cause.** Termux does not ship `git` by default, and it is needed to clone the
+repo (which replaced the old manual file-copy workflow).
+
+**Fix.**
+
+```bash
+pkg install -y git
+```
+
+You do **not** need `gh` in Termux — that is a desktop tool. Any instruction to
+run `gh auth refresh` belongs on your PC, not the phone.
+
+---
+
+## "cd ~/opencode-mobile: No such file or directory"
+
+**Cause.** The project was renamed to **The OC Remoter**. The directory is now
+`~/the-oc-remoter`.
+
+**Fix.** Use the new path, or let the old one redirect:
+
+```bash
+cd ~/the-oc-remoter
+```
+
+GitHub redirects the old repo URL automatically, so an existing clone still
+pulls — only the local directory name changed.
 
 ---
 

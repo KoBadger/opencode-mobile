@@ -9,21 +9,48 @@
 #  this and everything else.
 #
 #  Run in Termux:   bash install-bridge-phone.sh
+#
+#  If the bridge file is missing or out of date, pass --fetch to pull the
+#  current version straight from GitHub before installing:
+#     bash install-bridge-phone.sh --fetch
 # ===========================================================================
 set -u
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
-BOX="ubuntu"
-BRIDGE_IN_CONTAINER="/root/v1v2-bridge.mjs"
-SERVER_PORT=4096
-BRIDGE_PORT=4097
-USER_NAME="opencode"
-PASS="Vaporwave1127!"
+# shellcheck source=lib.sh
+[ -f "$REPO_DIR/lib.sh" ] && . "$REPO_DIR/lib.sh"
+
+REPO_URL="${REPO_URL:-https://raw.githubusercontent.com/KoBadger/the-oc-remoter/master}"
+BOX="${BOX:-ubuntu}"
+BRIDGE_IN_CONTAINER="${BRIDGE_IN_CONTAINER:-/root/v1v2-bridge.mjs}"
+SERVER_PORT="${SERVER_PORT:-4096}"
+BRIDGE_PORT="${BRIDGE_PORT:-4097}"
+USER_NAME="${OPENCODE_USER:-opencode}"
+PASS="${OPENCODE_PASS:-change-me}"
 
 say() { printf "\n\033[1;36m==> %s\033[0m\n" "$*"; }
+warn() { printf "\033[1;33m[!] %s\033[0m\n" "$*"; }
 die() { printf "\033[1;31m[x] %s\033[0m\n" "$*"; exit 1; }
 
+# --fetch pulls the current bridge from GitHub. Useful when this script was
+# copied to the phone on its own and has no repo checkout next to it.
+if [ "${1:-}" = "--fetch" ] || [ ! -f "$REPO_DIR/v1v2-bridge.mjs" ]; then
+  say "Fetching the current bridge from GitHub"
+  if curl -fsSL "$REPO_URL/v1v2-bridge.mjs" -o "$REPO_DIR/v1v2-bridge.mjs"; then
+    echo "    got v1v2-bridge.mjs ($(wc -c < "$REPO_DIR/v1v2-bridge.mjs") bytes)"
+  else
+    die "could not download v1v2-bridge.mjs from $REPO_URL"
+  fi
+fi
+
 [ -f "$REPO_DIR/v1v2-bridge.mjs" ] || die "v1v2-bridge.mjs not found next to this script."
+
+# Refuse to install a stale bridge that still has the framing bug.
+if ! grep -q '"content-length"' "$REPO_DIR/v1v2-bridge.mjs"; then
+  warn "this copy of v1v2-bridge.mjs predates the response-framing fix."
+  warn "re-run with --fetch to get the current version, or the app may show"
+  warn "'Unexpected status line' / 'Unexpected JSON token at \$[1].name'."
+fi
 
 say "1/4  Copying the bridge INTO the container"
 # proot's $HOME is /root, which is why the file must live there - not in Termux.
