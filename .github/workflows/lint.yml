@@ -1,0 +1,110 @@
+name: lint
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  shell:
+    name: shell + node syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bash syntax check
+        run: |
+          fail=0
+          for f in setup-phone.sh start.sh stop.sh restart.sh status.sh install-bridge-phone.sh; do
+            if bash -n "$f"; then
+              echo "OK   $f"
+            else
+              echo "FAIL $f"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: ShellCheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          # SC1091: sourced files not followed. SC2086/SC2015 kept as warnings.
+          shellcheck --severity=error \
+            setup-phone.sh start.sh stop.sh restart.sh status.sh install-bridge-phone.sh
+
+      - name: Node syntax check
+        run: node --check v1v2-bridge.mjs
+
+      - name: JSON validity
+        run: |
+          for f in phone-setup/*.json phone-setup/*.json.example; do
+            [ -f "$f" ] || continue
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" \
+              && echo "OK   $f"
+          done
+
+      - name: Line ending check
+        run: |
+          fail=0
+          for f in *.sh *.mjs; do
+            if grep -qU $'\r' "$f"; then
+              echo "FAIL $f contains CRLF (must be LF)"
+              fail=1
+            else
+              echo "OK   $f is LF"
+            fi
+          done
+          exit $fail
+
+  bridge:
+    name: bridge integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start a fake V2 upstream
+        run: |
+          cat > /tmp/fake-v2.mjs <<'EOF'
+          import http from "node:http";
+          http.createServer((req, res) => {
+            if (req.url === "/api/info") {
+              res.writeHead(200, { "content-type": "application/json" });
+              return res.end(JSON.stringify({ version: "2.0.12", pid: 1, urls: [] }));
+            }
+            if (req.url === "/api/session") {
+              res.writeHead(200, { "content-type": "application/json" });
+              return res.end(JSON.stringify({ data: [] }));
+            }
+            res.writeHead(404, { "content-type": "application/json" });
+            res.end(JSON.stringify({ error: "not found" }));
+          }).listen(4096, "127.0.0.1");
+          EOF
+          node /tmp/fake-v2.mjs &
+          sleep 1
+
+      - name: Start the bridge
+        run: |
+          PORT=4097 HOST=127.0.0.1 \
+          UPSTREAM=http://127.0.0.1:4096 \
+          BRIDGE_USERNAME=opencode BRIDGE_PASSWORD=secret \
+          node v1v2-bridge.mjs &
+          sleep 2
+
+      - name: Verify V1 -> V2 translation
+        run: |
+          set -e
+          echo "--- /global/health (synthetic) ---"
+          body=$(curl -fsS -u opencode:secret http://127.0.0.1:4097/global/health)
+          echo "$body"
+          echo "$body" | grep -q '"healthy":true' || { echo "health check failed"; exit 1; }
+          echo "$body" | grep -q '"version":"2.0.12"' || { echo "version missing"; exit 1; }
+
+          echo "--- /session (pass-through rewrite) ---"
+          curl -fsS -u opencode:secret http://127.0.0.1:4097/session
+
+          echo "--- auth is enforced ---"
+          code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:4097/global/health)
+          [ "$code" = "401" ] || { echo "expected 401, got $code"; exit 1; }
+          echo "OK: unauthenticated request rejected with 401"
